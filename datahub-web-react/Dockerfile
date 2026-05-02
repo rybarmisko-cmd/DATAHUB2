@@ -21,17 +21,11 @@ RUN yarn build
 # Serve with Caddy
 FROM caddy:2-alpine
 COPY --from=build /app/datahub-web-react/dist /srv
+FROM caddy:2-alpine
+COPY --from=build /app/datahub-web-react/dist /srv
 COPY <<EOF /etc/caddy/Caddyfile
-{
-    # Toto vypne automatické HTTPS a pokusy o certifikáty
-    auto_https off
-}
-
-:{$PORT:3000} {
-    root * /srv
-    file_server
-    try_files {path} /index.html
-    
-
-}
+:{$PORT:3000}
+root * /srv
+file_server
+try_files {path} /index.html
 EOF
