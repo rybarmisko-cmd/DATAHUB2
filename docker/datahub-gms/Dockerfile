@@ -23,12 +23,17 @@ RUN --mount=type=cache,id=s/c2e4edfe-3b96-437e-a9d6-7b1a17b684ed-/var/cache/apk,
 
 COPY docker/snippets/wait_for_deps.sh /usr/local/lib/datahub/wait_for_deps.sh
 
+FROM eclipse-temurin:21-jdk AS builder
+WORKDIR /app
+COPY . .
+RUN ./gradlew :metadata-service:war:build -x test --no-daemon
+
 FROM base AS prod-install
 COPY metadata-models/src/main/resources/entity-registry.yml /datahub/datahub-gms/resources/entity-registry.yml
 COPY docker/datahub-gms/start.sh /datahub/datahub-gms/scripts/start.sh
 COPY docker/monitoring/client-prometheus-config.yaml /datahub/datahub-gms/scripts/prometheus-config.yaml
 RUN chmod +x /datahub/datahub-gms/scripts/start.sh
-COPY metadata-service/war/build/libs/war.war /datahub/datahub-gms/bin/war.war
+COPY --from=builder /app/metadata-service/war/build/libs/war.war /datahub/datahub-gms/bin/war.war
 
 FROM base AS dev-install
 # Dummy stage for development. Assumes code is built on your machine and mounted to this image.
