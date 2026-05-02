@@ -49,7 +49,9 @@ RUN --mount=type=cache,id=s/5de4a4a2-29b4-4160-a05a-6151c20ae556-/var/cache/apt,
     lsb-release \
     gnupg \
     ca-certificates \
-    && add-apt-repository --no-update ppa:deadsnakes/ppa
+    && gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys F23C5A6CF475977595C89F51BA6932366A755776 \
+    && gpg --export F23C5A6CF475977595C89F51BA6932366A755776 | tee /etc/apt/trusted.gpg.d/deadsnakes.gpg > /dev/null \
+    && echo "deb http://ppa.launchpad.net/deadsnakes/ppa/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/deadsnakes.list
 
 ARG PYTHON_VERSION
 RUN test -n "${PYTHON_VERSION}"  # PYTHON_VERSION must be set
