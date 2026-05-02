@@ -16,7 +16,7 @@ RUN printf '%s\n' "${APK_REPOSITORY_URL}" > /etc/apk/repositories \
     && apk upgrade --no-cache
 
 COPY docker/snippets/setup_java_runtime.sh /tmp/setup_java_runtime.sh
-RUN --mount=type=cache,target=/var/cache/apk,sharing=locked \
+RUN --mount=type=cache,id=s/c2e4edfe-3b96-437e-a9d6-7b1a17b684ed-/var/cache/apk,target=/var/cache/apk,sharing=locked \
     chmod +x /tmp/setup_java_runtime.sh \
     && INSTALL_JATTACH=1 OTEL_JMX_DIR=/ /tmp/setup_java_runtime.sh \
     && rm -f /tmp/setup_java_runtime.sh
