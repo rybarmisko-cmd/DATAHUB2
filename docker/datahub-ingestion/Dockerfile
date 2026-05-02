@@ -42,8 +42,8 @@ RUN existing_group=$(getent group 1000 | cut -d: -f1) && \
 
 # Setup the PPA for alternative Python versions.
 # TODO: Eventually we should switch to using uv's support for python-build-standalone.
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+RUN --mount=type=cache,id=s/5de4a4a2-29b4-4160-a05a-6151c20ae556-/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=s/5de4a4a2-29b4-4160-a05a-6151c20ae556-/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
     apt-get update && apt-get install -y \
     software-properties-common \
     lsb-release \
@@ -54,8 +54,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 ARG PYTHON_VERSION
 RUN test -n "${PYTHON_VERSION}"  # PYTHON_VERSION must be set
 
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+RUN --mount=type=cache,id=s/5de4a4a2-29b4-4160-a05a-6151c20ae556-/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=s/5de4a4a2-29b4-4160-a05a-6151c20ae556-/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
     apt-get update && apt-get install -y \
     python${PYTHON_VERSION} \
     python${PYTHON_VERSION}-venv \
@@ -101,8 +101,8 @@ ENV SSL_CERT_FILE="/etc/ssl/certs/ca-certificates.crt"
 FROM python-base AS ingestion-base-slim
 
 USER 0
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+RUN --mount=type=cache,id=s/5de4a4a2-29b4-4160-a05a-6151c20ae556-/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=s/5de4a4a2-29b4-4160-a05a-6151c20ae556-/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
     apt-get update && apt-get install -y \
     python3-ldap \
     libldap2-dev \
@@ -125,8 +125,8 @@ FROM ingestion-base-slim AS ingestion-base-full
 USER 0
 # We need to install build-essential in order to build some Python packages (e.g. python-ldap, kerberos)
 # gcc and g++ are explicitly listed to ensure compilers are available on all architectures
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+RUN --mount=type=cache,id=s/5de4a4a2-29b4-4160-a05a-6151c20ae556-/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=s/5de4a4a2-29b4-4160-a05a-6151c20ae556-/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
     apt-get update && apt-get install -y \
     openjdk-21-jre-headless \
     build-essential \
@@ -134,8 +134,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     g++ \
     make
 
-RUN --mount=type=bind,source=./docker/snippets/oracle_instantclient.sh,target=/oracle_instantclient.sh \
-    /oracle_instantclient.sh
+COPY ./docker/snippets/oracle_instantclient.sh /oracle_instantclient.sh
+RUN /oracle_instantclient.sh && rm /oracle_instantclient.sh
 
 USER datahub
 
@@ -153,24 +153,24 @@ COPY --chown=datahub ./metadata-ingestion /metadata-ingestion
 ARG RELEASE_VERSION
 RUN test -n "$RELEASE_VERSION"  # RELEASE_VERSION is a required build arg
 RUN test -d /metadata-ingestion/src/datahub/metadata  # codegen must be run prior to building the image
-RUN --mount=type=bind,source=./python-build/version_updater.py,target=/version_updater.py \
-    python /version_updater.py --directory /metadata-ingestion/ --version "$RELEASE_VERSION" --expected-update-count 1
+COPY ./python-build/version_updater.py /version_updater.py
+RUN python /version_updater.py --directory /metadata-ingestion/ --version "$RELEASE_VERSION" --expected-update-count 1 && rm /version_updater.py
 
 FROM ingestion-base-full AS add-code-full
 COPY --chown=datahub ./metadata-ingestion /metadata-ingestion
 ARG RELEASE_VERSION
 RUN test -n "$RELEASE_VERSION"
 RUN test -d /metadata-ingestion/src/datahub/metadata
-RUN --mount=type=bind,source=./python-build/version_updater.py,target=/version_updater.py \
-    python /version_updater.py --directory /metadata-ingestion/ --version "$RELEASE_VERSION" --expected-update-count 1
+COPY ./python-build/version_updater.py /version_updater.py
+RUN python /version_updater.py --directory /metadata-ingestion/ --version "$RELEASE_VERSION" --expected-update-count 1 && rm /version_updater.py
 
 FROM ingestion-base-locked AS add-code-locked
 COPY --chown=datahub ./metadata-ingestion /metadata-ingestion
 ARG RELEASE_VERSION
 RUN test -n "$RELEASE_VERSION"
 RUN test -d /metadata-ingestion/src/datahub/metadata
-RUN --mount=type=bind,source=./python-build/version_updater.py,target=/version_updater.py \
-    python /version_updater.py --directory /metadata-ingestion/ --version "$RELEASE_VERSION" --expected-update-count 1
+COPY ./python-build/version_updater.py /version_updater.py
+RUN python /version_updater.py --directory /metadata-ingestion/ --version "$RELEASE_VERSION" --expected-update-count 1 && rm /version_updater.py
 
 # =============================================================================
 # FINAL STAGES - Ubuntu variants
@@ -180,7 +180,7 @@ FROM add-code-slim AS final-slim
 
 ENV UV_BUILD_CONSTRAINT=/metadata-ingestion/build-constraints.txt
 
-RUN --mount=type=cache,target=$HOME/.cache/uv,uid=1000,gid=1000,sharing=private \
+RUN --mount=type=cache,id=s/5de4a4a2-29b4-4160-a05a-6151c20ae556-/home/datahub/.cache/uv,target=/home/datahub/.cache/uv,uid=1000,gid=1000,sharing=private \
     UV_LINK_MODE=copy uv pip install -e "/metadata-ingestion/[base,datahub-rest,datahub-kafka,snowflake,bigquery,redshift,mysql,postgres,s3-slim,gcs-slim,abs-slim,clickhouse,glue,dbt,looker,lookml,tableau,powerbi,superset,datahub-business-glossary]" && \
     datahub --version
 
@@ -188,7 +188,7 @@ FROM add-code-full AS final-full
 
 ENV UV_BUILD_CONSTRAINT=/metadata-ingestion/build-constraints.txt
 
-RUN --mount=type=cache,target=$HOME/.cache/uv,uid=1000,gid=1000,sharing=private \
+RUN --mount=type=cache,id=s/5de4a4a2-29b4-4160-a05a-6151c20ae556-/home/datahub/.cache/uv,target=/home/datahub/.cache/uv,uid=1000,gid=1000,sharing=private \
     UV_LINK_MODE=copy uv pip install \
         -e "/metadata-ingestion/[all]" \
     && datahub --version
@@ -198,7 +198,7 @@ FROM add-code-locked AS final-locked
 ENV UV_BUILD_CONSTRAINT=/metadata-ingestion/build-constraints.txt
 
 # Locked variant: minimal install with s3-slim, network will be blocked
-RUN --mount=type=cache,target=$HOME/.cache/uv,uid=1000,gid=1000,sharing=private \
+RUN --mount=type=cache,id=s/5de4a4a2-29b4-4160-a05a-6151c20ae556-/home/datahub/.cache/uv,target=/home/datahub/.cache/uv,uid=1000,gid=1000,sharing=private \
     UV_LINK_MODE=copy uv pip install -e "/metadata-ingestion/[base,datahub-rest,datahub-kafka,s3-slim,gcs-slim,abs-slim]" && \
     datahub --version
 
