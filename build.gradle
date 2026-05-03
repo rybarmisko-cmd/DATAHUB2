@@ -102,6 +102,10 @@ plugins {
   // TODO id "org.gradlex.java-ecosystem-capabilities" version "1.0"
 }
 
+gitProperties {
+    failOnNoGitDirectory = false
+}
+
 apply from: "gradle/docker/docker-utils.gradle"
 
 // Jackson BOM patch version — bump here and in buildSrc/build.gradle (buildSrc classpath).
