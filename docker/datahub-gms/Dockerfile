@@ -46,14 +46,7 @@ RUN mkdir -p /etc/datahub/plugins/auth/resources /datahub
 RUN addgroup -S datahub && adduser -S datahub -G datahub && chmod g-s /home/datahub
 RUN chown -R datahub:datahub /etc/datahub /datahub
 USER datahub
-# --- SEM VLOŽ TÚTO OPRAVU ---
-# Vytvoríme priečinok pre externú konfiguráciu a pridáme tam git.properties
-RUN mkdir -p /datahub/datahub-gms/config && \
-    echo "git.commit.id.full=unknown" > /datahub/datahub-gms/config/git.properties && \
-    echo "git.commit.id.abbrev=unknown" >> /datahub/datahub-gms/config/git.properties && \
-    echo "git.build.version=0.0.0" >> /datahub/datahub-gms/config/git.properties
 
-# Povieme Springu, aby hľadal súbory aj v tomto novom priečinku (toto pridaj k ostatným ENV)
 ENV CLASSPATH="/datahub/datahub-gms/config:$CLASSPATH"
 # ----------------------------
 ENV JMX_OPTS=""
