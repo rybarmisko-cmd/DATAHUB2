@@ -40,30 +40,20 @@ RUN existing_group=$(getent group 1000 | cut -d: -f1) && \
     chown -R datahub:datahub $HOME && \
     chmod g-s $HOME
 
-# Setup the PPA for alternative Python versions.
-# TODO: Eventually we should switch to using uv's support for python-build-standalone.
-RUN --mount=type=cache,id=s/5de4a4a2-29b4-4160-a05a-6151c20ae556-/var/cache/apt,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,id=s/5de4a4a2-29b4-4160-a05a-6151c20ae556-/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
-    apt-get update && apt-get install -y \
-    software-properties-common \
-    lsb-release \
-    gnupg \
-    ca-certificates \
-    && gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys F23C5A6CF475977595C89F51BA6932366A755776 \
-    && gpg --export F23C5A6CF475977595C89F51BA6932366A755776 | tee /etc/apt/trusted.gpg.d/deadsnakes.gpg > /dev/null \
-    && echo "deb http://ppa.launchpad.net/deadsnakes/ppa/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/deadsnakes.list
+# Install uv early so we can use it to install Python.
+# This replaces the deadsnakes PPA which is unreachable from this build environment.
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 ARG PYTHON_VERSION
 RUN test -n "${PYTHON_VERSION}"  # PYTHON_VERSION must be set
 
+# Install Python via uv (downloads from python-build-standalone on GitHub).
+RUN uv python install ${PYTHON_VERSION}
+
+# Install remaining system packages (no PPA needed).
 RUN --mount=type=cache,id=s/5de4a4a2-29b4-4160-a05a-6151c20ae556-/var/cache/apt,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,id=s/5de4a4a2-29b4-4160-a05a-6151c20ae556-/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
     apt-get update && apt-get install -y \
-    python${PYTHON_VERSION} \
-    python${PYTHON_VERSION}-venv \
-    python${PYTHON_VERSION}-dev \
-    python${PYTHON_VERSION}-distutils \
-    python-is-python3 \
     git \
     wget \
     curl \
@@ -71,11 +61,11 @@ RUN --mount=type=cache,id=s/5de4a4a2-29b4-4160-a05a-6151c20ae556-/var/cache/apt,
     unzip \
     nano
 
-# Set the default python version.
-RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1 \
-    && update-alternatives --install /usr/bin/python python /usr/bin/python3 1
-
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+# Set up python/python3 symlinks to the uv-installed Python.
+RUN UV_PYTHON_DIR=$(uv python dir) && \
+    PYTHON_BIN=$(find "$UV_PYTHON_DIR" -name "python${PYTHON_VERSION}" -type f | head -1) && \
+    ln -sf "$PYTHON_BIN" /usr/bin/python3 && \
+    ln -sf "$PYTHON_BIN" /usr/bin/python
 
 ARG PIP_MIRROR_URL=https://pypi.python.org/simple
 ARG PIP_EXTRA_INDEX_URL=""
